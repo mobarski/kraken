@@ -6,11 +6,12 @@ def random_ctx(ctx_config):
 		ctx[k] = _weighted_choice(options, weights)
 	return ctx
 
-def random_click(arm_config, ctx={}):
+def random_click(arm_ids, arm_config, ctx={}, no_click_weight=0):
 	kv_list = [f'{k}:{v}' for k,v in ctx.items()]
 	kv_weights = [arm_config[kv] for kv in kv_list]
 	weights = [sum(w) for w in zip(*kv_weights)]
-	return _weighted_choice(range(len(weights)), tuple(weights))
+	arm_weights = [no_click_weight] + [weights[i-1] for i in arm_ids]
+	return _weighted_choice(tuple([None]+arm_ids), tuple(arm_weights))
 
 # ---[ internal ]--------------------------------------------------------------
 
@@ -49,8 +50,10 @@ arm_config = {
 	'pos:3': [1,1,1, 1,1,1, 1,1,1],
 }
 
+pool = [1,2,3,4,5,6,7,8,9]
+
 if __name__=="__main__":
 	ctx = random_ctx(ctx_config)
 	print(ctx)
-	print(random_click(arm_config, ctx))
+	print(random_click(pool, arm_config, ctx))
 
