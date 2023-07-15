@@ -6,7 +6,7 @@ class DummyDB(dict):
 		pass
 
 db = shelve.open('data/test1.shelve') # 7it/s
-db = DummyDB() # 112it/s
+db = DummyDB() # 175it/s (profile) 4400it/s (normal)
 room = 1 # TODO: param
 
 def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[]):
