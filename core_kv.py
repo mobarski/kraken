@@ -1,13 +1,12 @@
-import shelve
+from kv import KV
 from math import log, sqrt
 
-class DummyDB(dict):
-	def sync(self):
-		pass
-
-db = shelve.open('data/test1.shelve') # 7it/s
-db = DummyDB() # 175it/s (profile) 4400it/s (normal)
+db = KV.open('data/test1.kv')
 room = 1 # TODO: param
+
+def sync():
+	db.sync()
+
 
 def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[]):
 	_register_stat('views', arm_ids, ctx, ctx_per_id, seg)
@@ -15,6 +14,7 @@ def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[]):
 
 def register_click(arm_id, ctx={}, ctx2={}, seg=[]):
 	_register_stat('clicks', [arm_id], ctx, [ctx2], seg)
+
 
 def calculate_ctr(arm_ids, ctx={}, seg=[]):
 	stat = 'ctr'
@@ -31,6 +31,7 @@ def calculate_ctr(arm_ids, ctx={}, seg=[]):
 			key = f'r{room}:{segment}|{stat}-ctx:a{arm_id}:{k}:{v}'
 			db[key] = db.get(kc,0) / db.get(kv,1)
 	#db.sync()
+
 
 def calculate_ucb(arm_ids, ctx={}, seg=[]):
 	"upper confidence band"
