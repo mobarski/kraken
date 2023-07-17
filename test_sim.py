@@ -4,7 +4,8 @@ from tqdm import tqdm
 import sim
 
 #import core_kv as core
-import core_redis as core
+#import core_redis as core
+import core_base as core
 
 def sim_one(n_disp=3, no_click_weight=10, stat='ucb1', room=1):
 	ctx = sim.random_ctx(sim.ctx_config)
