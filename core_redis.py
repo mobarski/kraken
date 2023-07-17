@@ -1,11 +1,4 @@
-import redis
 from math import log, sqrt
-
-db = redis.Redis(host='localhost', port=6379, db=0)
-
-
-def sync():
-    pass # not used for redis
 
 
 def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[], room=1):
@@ -155,6 +148,13 @@ def _increment_stat(stat, arm_ids, ctx, ctx_per_id, seg, room):
     _increment_by_one(f'{room}:{segment}', todo)
 
 # ---[ db specific ]----------------------------------------------------------
+
+import redis
+
+db = redis.Redis(host='localhost', port=6379, db=0)
+
+def sync():
+    pass # not used for redis
 
 def _increment_by_one(key, fields):
     batch = db.pipeline()
