@@ -20,7 +20,7 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1):
     "return arm ids sorted by given stat (descending), and stat values"
     segment = _segment_str(ctx, seg)
     ctx_items = tuple(ctx.items()) # optimization
-    # DB SEPECIFIC
+    # DB SEPECIFIC?
     if ctx:
         keys = [f'{stat}-ctx:{a}:{k}:{v}' for k,v in ctx_items for a in arm_ids]
         cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
@@ -30,7 +30,7 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1):
         keys = [f'{stat}:{a}' for a in arm_ids]
         cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
         stat_values = [cache.get(f'{stat}:{a}',0) for a in arm_ids]
-    # /DB SEPECIFIC
+    # /DB SEPECIFIC?
     by_value = sorted(zip(arm_ids,stat_values), key=lambda x:x[1], reverse=True)
     sorted_ids = [x[0] for x in by_value]
     values = [x[1] for x in by_value]
@@ -46,20 +46,20 @@ def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
     keys = _get_keys(arm_ids, ctx_items)
     cache = _get_cache(f'{room}:{segment}', keys)
     #
-    toset = []
+    kv_pairs = []
     for arm_id in arm_ids:
         key_v = f'views:{arm_id}'
         key_c = f'clicks:{arm_id}'
         val = cache.get(key_c,0) / cache.get(key_v,1) # STAT SPECIFIC
         key = f'{stat}:{arm_id}'
-        toset.append((key,val))
+        kv_pairs.append((key,val))
         for k,v in ctx_items:
             key_v = f'views-ctx:{arm_id}:{k}:{v}'
             key_c = f'clicks-ctx:{arm_id}:{k}:{v}'
             val = cache.get(key_c,0) / cache.get(key_v,1) # STAT SPECIFIC
             key = f'{stat}-ctx:{arm_id}:{k}:{v}'
-            toset.append((key,val))
-    db.hmset(f'{room}:{segment}', dict(toset))
+            kv_pairs.append((key,val))
+    _set_many(f'{room}:{segment}', kv_pairs)
 
 
 def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
@@ -73,22 +73,22 @@ def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
     #
     total_views = cache.get(f'views-agg',1) # STAT SPECIFIC
     log_total_views = log(total_views)      # STAT SPECIFIC
-    toset = []
+    kv_pairs = []
     for arm_id in arm_ids:
         arm_views = cache.get(f'views:{arm_id}',1)
         arm_clicks = cache.get(f'clicks:{arm_id}',0)
         ctr = arm_clicks / arm_views
         val = ctr + alpha*sqrt(2*log_total_views/arm_views) # STAT SPECIFIC
         key = f'{stat}:{arm_id}'
-        toset.append((key,val))
+        kv_pairs.append((key,val))
         for k,v in ctx_items:
             arm_views = cache.get(f'views-ctx:{arm_id}:{k}:{v}',1)
             arm_clicks = cache.get(f'clicks-ctx:{arm_id}:{k}:{v}',0)
             ctr = arm_clicks / arm_views
             val = ctr + alpha*sqrt(2*log_total_views/arm_views) # STAT SPECIFIC
             key = f'{stat}-ctx:{arm_id}:{k}:{v}'
-            toset.append((key,val))
-    db.hmset(f'{room}:{segment}', dict(toset))
+            kv_pairs.append((key,val))
+    _set_many(f'{room}:{segment}', kv_pairs)
 
 
 def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
@@ -100,7 +100,7 @@ def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
     keys = _get_keys(arm_ids, ctx_items) + ['views-agg']
     cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
     #
-    toset = []
+    kv_pairs = []
     for arm_id in arm_ids:
         arm_views = cache.get(f'views:{arm_id}',1)
         arm_clicks = cache.get(f'clicks:{arm_id}',0)
@@ -108,7 +108,7 @@ def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
         sigma = sqrt(ctr*(1-ctr)/arm_views) # STAT SPECIFIC
         val = ctr + zscore*sigma            # STAT SPECIFIC
         key = f'{stat}:{arm_id}'
-        toset.append((key,val))
+        kv_pairs.append((key,val))
         for k,v in ctx_items:
             arm_views = cache.get(f'views-ctx:{arm_id}:{k}:{v}',1)
             arm_clicks = cache.get(f'clicks-ctx:{arm_id}:{k}:{v}',0)
@@ -116,8 +116,8 @@ def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
             sigma = sqrt(ctr*(1-ctr)/arm_views) # STAT SPECIFIC
             val = ctr + zscore*sigma            # STAT SPECIFIC
             key = f'{stat}-ctx:{arm_id}:{k}:{v}'
-            toset.append((key,val))
-    db.hmset(f'{room}:{segment}', dict(toset))
+            kv_pairs.append((key,val))
+    _set_many(f'{room}:{segment}', kv_pairs)
 
 
 # ---[ internal ]--------------------------------------------------------------
@@ -131,11 +131,6 @@ def _get_keys(arm_ids, ctx_items):
             keys.append(f'views-ctx:{arm_id}:{k}:{v}')
             keys.append(f'clicks-ctx:{arm_id}:{k}:{v}')
     return keys
-
-def _get_cache(key, fields, as_type=int):
-    "get cache values for given key and fields"
-    values = db.hmget(key, fields)
-    return {k:as_type(v) for k,v in zip(fields, values) if v}
 
 def _segment_str(ctx, seg):
     "return segment string for given context and segment"
@@ -157,8 +152,20 @@ def _increment_stat(stat, arm_ids, ctx, ctx_per_id, seg, room):
         for k,v in aux_ctx.items():
             todo.append(f'{stat}-ctx:{arm_id}:{k}:{v}')
             todo.append(f'{stat}-agg-ctx:{k}:{v}')
-    #
+    _increment_by_one(f'{room}:{segment}', todo)
+
+# ---[ db specific ]----------------------------------------------------------
+
+def _increment_by_one(key, fields):
     batch = db.pipeline()
-    for k in todo:
-        batch.hincrby(f'{room}:{segment}', k, 1)
+    for k in fields:
+        batch.hincrby(key, k, 1)
     batch.execute()
+
+def _set_many(key, kv_pairs):
+    db.hmset(key, dict(kv_pairs))
+
+def _get_cache(key, fields, as_type=int):
+    "get cached values dictionary for given key and fields"
+    values = db.hmget(key, fields)
+    return {k:as_type(v) for k,v in zip(fields, values) if v}
