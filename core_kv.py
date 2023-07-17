@@ -9,14 +9,15 @@ def sync():
 
 
 def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[]):
-	_register_stat('views', arm_ids, ctx, ctx_per_id, seg)
+	_increment_stat('views', arm_ids, ctx, ctx_per_id, seg)
 
 
 def register_click(arm_id, ctx={}, ctx2={}, seg=[]):
-	_register_stat('clicks', [arm_id], ctx, [ctx2], seg)
+	_increment_stat('clicks', [arm_id], ctx, [ctx2], seg)
 
 
 def calculate_ctr(arm_ids, ctx={}, seg=[]):
+	"calculate click-through rate for each arm and context"
 	stat = 'ctr'
 	ctx_items = tuple(ctx.items()) # optimization
 	segment = _segment_str(ctx, seg)
@@ -33,8 +34,14 @@ def calculate_ctr(arm_ids, ctx={}, seg=[]):
 	#db.sync()
 
 
+# REF: https://jamesrledoux.com/algorithms/bandit-algorithms-epsilon-ucb-exp-python/
+# REF: https://www.deepmind.com/learning-resources/reinforcement-learning-lecture-series-2021
+# REF: https://storage.googleapis.com/deepmind-media/UCL%20x%20DeepMind%202021/Lecture%202-%20Exploration%20and%20control_slides.pdf
+# REF: normal distrbution confidence interval
+# REF: beta distribution confidence interval
+# TODO: bayesian UCB
 def calculate_ucb(arm_ids, ctx={}, seg=[]):
-	"upper confidence band"
+	"calculate upper confidence band (UCB1) for each arm and context"
 	alpha = 1.0 # exploration meta-param
 	ctx_items = tuple(ctx.items()) # optimization
 	segment = _segment_str(ctx, seg)
@@ -44,14 +51,15 @@ def calculate_ucb(arm_ids, ctx={}, seg=[]):
 		arm_views = db.get(f'r{room}:{segment}|views:a{arm_id}',0.5)
 		ctr = db.get(f'r{room}:{segment}|ctr:a{arm_id}',0)
 		key = f'r{room}:{segment}|ucb:a{arm_id}'
-		db[key] = ctr + alpha*sqrt(2*log_total_views/arm_views) # UCB FORMULA
+		db[key] = ctr + alpha*sqrt(2*log_total_views/arm_views) # UCB1 FORMULA
 		for k,v in ctx_items:
 			arm_views = db.get(f'r{room}:{segment}|views-ctx:a{arm_id}:{k}:{v}',0.5)
 			ctr = db.get(f'r{room}:{segment}|ctr-ctx:a{arm_id}:{k}:{v}',0)
 			key = f'r{room}:{segment}|ucb-ctx:a{arm_id}:{k}:{v}'
-			db[key] = ctr + alpha*sqrt(2*log_total_views/arm_views) # UCB FORMULA
+			db[key] = ctr + alpha*sqrt(2*log_total_views/arm_views) # UCB1 FORMULA
 	#db.sync()
 
+# TODO: shuffle data with the same value / add noise (relative to the value)
 def sorted_by_stat(stat, arm_ids, ctx={}, seg=[]):
 	"return arm ids sorted by given stat (descending), and stat values"
 	segment = _segment_str(ctx, seg)
@@ -70,10 +78,12 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[]):
 # ---[ internal ]--------------------------------------------------------------
 
 def _segment_str(ctx, seg):
+	"return segment string for given context and segment"
 	# TODO: ctx_per_id
 	return 'seg:'+','.join([str(ctx.get(k,'')) for k in seg])
 
-def _register_stat(stat, arm_ids, ctx, ctx_per_id, seg):
+def _increment_stat(stat, arm_ids, ctx, ctx_per_id, seg):
+	"increment stat for each arm and context"
 	segment = _segment_str(ctx, seg)
 	ctx_items = tuple(ctx.items()) # optimization
 	todo = []
