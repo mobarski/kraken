@@ -2,21 +2,21 @@ import redis
 from math import log, sqrt
 
 db = redis.Redis(host='localhost', port=6379, db=0)
-room = 1 # TODO: param
+
 
 def sync():
     pass # not used for redis
 
 
-def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[]):
-    _increment_stat('views', arm_ids, ctx, ctx_per_id, seg)
+def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[], room=1):
+    _increment_stat('views', arm_ids, ctx, ctx_per_id, seg, room)
 
 
-def register_click(arm_id, ctx={}, ctx2={}, seg=[]):
-    _increment_stat('clicks', [arm_id], ctx, [ctx2], seg)
+def register_click(arm_id, ctx={}, ctx2={}, seg=[], room=1):
+    _increment_stat('clicks', [arm_id], ctx, [ctx2], seg, room)
 
 
-def sorted_by_stat(stat, arm_ids, ctx={}, seg=[]):
+def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1):
     "return arm ids sorted by given stat (descending), and stat values"
     segment = _segment_str(ctx, seg)
     ctx_items = tuple(ctx.items()) # optimization
@@ -37,7 +37,7 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[]):
     return sorted_ids, values
 
 
-def calculate_ctr(arm_ids, ctx={}, seg=[]):
+def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
     "calculate click-through rate for each arm and context"
     stat = 'ctr' # STAT SPECIFIC
     ctx_items = tuple(ctx.items()) # optimization
@@ -62,7 +62,7 @@ def calculate_ctr(arm_ids, ctx={}, seg=[]):
     db.hmset(f'{room}:{segment}', dict(toset))
 
 
-def calculate_ucb1(arm_ids, ctx={}, seg=[], alpha=1.0):
+def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
     "calculate upper confidence band (UCB1) for each arm and context"
     stat = 'ucb1' # STAT SPECIFIC
     ctx_items = tuple(ctx.items()) # optimization
@@ -91,7 +91,7 @@ def calculate_ucb1(arm_ids, ctx={}, seg=[], alpha=1.0):
     db.hmset(f'{room}:{segment}', dict(toset))
 
 
-def calculate_bucb(arm_ids, ctx={}, seg=[], zscore=1.96):
+def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
     "calculate bayesian upper confidence band (BUCB) for each arm and context, zscore=1.96 for 95% confidence (normal distribution))"
     stat = 'bucb' # STAT SPECIFIC
     ctx_items = tuple(ctx.items()) # optimization
@@ -142,7 +142,7 @@ def _segment_str(ctx, seg):
     # TODO: ctx_per_id
     return 'seg:'+','.join([str(ctx.get(k,'')) for k in seg])
 
-def _increment_stat(stat, arm_ids, ctx, ctx_per_id, seg):
+def _increment_stat(stat, arm_ids, ctx, ctx_per_id, seg, room):
     "increment stat for each arm and context"
     segment = _segment_str(ctx, seg)
     ctx_items = tuple(ctx.items()) # optimization
