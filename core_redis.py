@@ -166,6 +166,6 @@ def _set_many(key, kv_pairs):
     db.hmset(key, dict(kv_pairs))
 
 def _get_cache(key, fields, as_type=int):
-    "get cached values dictionary for given key and fields"
+    "get dictionary of cached values for given key and fields"
     values = db.hmget(key, fields)
     return {k:as_type(v) for k,v in zip(fields, values) if v}
