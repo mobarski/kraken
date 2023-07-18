@@ -57,10 +57,7 @@ CTR = arm_clicks / arm_views
 ```mermaid
 sequenceDiagram
 
-participant core
-participant db
-note over db : @room:@segment
-
+note over core,db : db operations group 1 (@room:@segment)
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
@@ -72,6 +69,7 @@ core --> core : calculate CTR for CTX
 end
 end
 
+note over core,db : db operations group 2 (@room:@segment)
 loop arm_ids
 core ->> db : SET ctr:@arm
 loop ctx_items
@@ -92,12 +90,8 @@ alpha: exploration weight, default=1.0
 ```mermaid
 sequenceDiagram
 
-participant core
-participant db
-note over db : @room:@segment
-
+note over core,db : db operations group 1 (@room:@segment)
 core ->> db : GET views-agg
-
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
@@ -109,6 +103,7 @@ core --> core : calculate UCB1 for CTX
 end
 end
 
+note over core,db : db operations group 2 (@room:@segment)
 loop arm_ids
 core ->> db : SET ucb1:@arm
 loop ctx_items
@@ -129,10 +124,7 @@ zscore: confidence level for normal distribution, 1.96 for 95%
 ```mermaid
 sequenceDiagram
 
-participant core
-participant db
-note over db : @room:@segment
-
+note over core,db : db operations group 1 (@room:@segment)
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
@@ -144,6 +136,7 @@ core --> core : calculate BUCB for CTX
 end
 end
 
+note over core,db : db operations group 2 (@room:@segment)
 loop arm_ids
 core ->> db : SET bucb:@arm
 loop ctx_items
