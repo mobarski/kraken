@@ -119,7 +119,7 @@ BUCB = ctr + zscore * sigma
 
 sigma = sqrt(ctr*(1-ctr)/arm_views)
 
-zscore: confidence level for normal distribution, 1.96 for 95%
+[zscore](https://en.wikipedia.org/wiki/Standard_normal_table): confidence level for normal distribution, 1.96 for 95%
 
 ```mermaid
 sequenceDiagram
