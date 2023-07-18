@@ -61,10 +61,15 @@ note over core,db : db operations group 1 (@room:@segment)
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
-core --> core : calculate CTR
 loop ctx_items
 core ->> db : GET views-ctx:@arm:@ctx
 core ->> db : GET clicks-ctx:@arm:@ctx
+end
+end
+
+loop arm_ids
+core --> core : calculate CTR
+loop ctx_items
 core --> core : calculate CTR for CTX
 end
 end
@@ -95,10 +100,15 @@ core ->> db : GET views-agg
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
-core --> core : calculate UCB1
 loop ctx_items
 core ->> db : GET views-ctx:@arm:@ctx
 core ->> db : GET clicks-ctx:@arm:@ctx
+end
+end
+
+loop arm_ids
+core --> core : calculate UCB1
+loop ctx_items
 core --> core : calculate UCB1 for CTX
 end
 end
@@ -128,10 +138,15 @@ note over core,db : db operations group 1 (@room:@segment)
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
-core --> core : calculate BUCB
 loop ctx_items
 core ->> db : GET views-ctx:@arm:@ctx
 core ->> db : GET clicks-ctx:@arm:@ctx
+end
+end
+
+loop arm_ids
+core --> core : calculate BUCB
+loop ctx_items
 core --> core : calculate BUCB for CTX
 end
 end
