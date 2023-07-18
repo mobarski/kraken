@@ -6,7 +6,11 @@ Kraken is a Contextual Bandits engine designed for:
 - Ease of deployment: Quickly deployable on various platforms with minimal configuration.
 - Ease of scaling: Designed to be AWS lambda friendly, making it scalable and efficient.
 
-Features include multiple experiments (also known as rooms) and segmentation for more granular control and analysis.
+Features include:
+
+- multiple experiments (also known as rooms)
+- segmentation for more granular control and analysis
+- experiment simulator (with context)
 
 
 
@@ -48,23 +52,32 @@ TODO: pip install git+https://github.com/mobarski/kraken.git
 
 ### Calculate CTR
 
+CTR = arm_clicks / arm_views
+
 ```mermaid
 sequenceDiagram
+
+participant core
+participant db
+note over db : @room:@segment
 
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
-core ->> db : SET ctr:@arm
-
+core --> core : calculate CTR
 loop ctx_items
 core ->> db : GET views-ctx:@arm:@ctx
 core ->> db : GET clicks-ctx:@arm:@ctx
+core --> core : calculate CTR for CTX
+end
+end
+
+loop arm_ids
+core ->> db : SET ctr:@arm
+loop ctx_items
 core ->> db : SET ctr-ctx:@arm:@ctx
 end
-
 end
-
-
 
 ```
 
@@ -72,26 +85,74 @@ end
 
 ### Calculate UCB1
 
+UCB1 = ctr + alpha * sqrt(2*log(all_arms_views)) / arm_views
+
+alpha: exploration weight, default=1.0
+
 ```mermaid
 sequenceDiagram
+
+participant core
+participant db
+note over db : @room:@segment
 
 core ->> db : GET views-agg
 
 loop arm_ids
 core ->> db : GET views:@arm
 core ->> db : GET clicks:@arm
-core ->> db : SET ucb1:@arm
-
+core --> core : calculate UCB1
 loop ctx_items
 core ->> db : GET views-ctx:@arm:@ctx
 core ->> db : GET clicks-ctx:@arm:@ctx
-core ->> db : SET ucb1-ctx:@arm:@ctx
+core --> core : calculate UCB1 for CTX
+end
 end
 
+loop arm_ids
+core ->> db : SET ucb1:@arm
+loop ctx_items
+core ->> db : SET ucb1-ctx:@arm:@ctx
 end
+end
+
 ```
 
 ### Calculate BUCB (Bayesian UCB)
+
+BUCB = ctr + zscore * sigma
+
+sigma = sqrt(ctr*(1-ctr)/arm_views)
+
+zscore: confidence level for normal distribution, 1.96 for 95%
+
+```mermaid
+sequenceDiagram
+
+participant core
+participant db
+note over db : @room:@segment
+
+loop arm_ids
+core ->> db : GET views:@arm
+core ->> db : GET clicks:@arm
+core --> core : calculate BUCB
+loop ctx_items
+core ->> db : GET views-ctx:@arm:@ctx
+core ->> db : GET clicks-ctx:@arm:@ctx
+core --> core : calculate BUCB for CTX
+end
+end
+
+loop arm_ids
+core ->> db : SET bucb:@arm
+loop ctx_items
+core ->> db : SET bucb-ctx:@arm:@ctx
+end
+end
+```
+
+
 
 
 
