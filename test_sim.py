@@ -11,9 +11,10 @@ def sim_one(n_disp=3, no_click_weight=10, stat='ucb1', room=1):
 	ctx = sim.random_ctx(sim.ctx_config)
 	#
 	if random()<=1.0: # TODO: param
-		if   stat=='ctr':  core.calculate_ctr(sim.pool,  ctx, room=room)
-		elif stat=='ucb1': core.calculate_ucb1(sim.pool, ctx, room=room)
-		elif stat=='bucb': core.calculate_bucb(sim.pool, ctx, room=room)
+		if   stat=='ctr':  core.calculate_ctr(sim.pool,  ctx, room=room) # core_base: 14k/s
+		elif stat=='ucb1': core.calculate_ucb1(sim.pool, ctx, room=room) # core_base: 12k/s
+		elif stat=='bucb': core.calculate_bucb(sim.pool, ctx, room=room) # core_base: 13k/s
+		elif stat=='tsbd': core.calculate_tsbd(sim.pool, ctx, room=room) # core_base:  8k/s
 	ids,vals = core.sorted_by_stat(stat, sim.pool, ctx, room=room)
 	disp_ids = ids[:n_disp]
 	core.register_views(disp_ids, ctx, room=room)
@@ -28,7 +29,7 @@ def sim_many(n, **kw):
 	core.sync()
 
 if 1:
-	sim_many(10_000, stat='ctr', room=2)
+	sim_many(100_000, stat='ctr', room=2)
 else:
 	import profile
 	import pstats

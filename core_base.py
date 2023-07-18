@@ -1,4 +1,5 @@
 from math import log, sqrt
+from random import betavariate
 
 
 def register_views(arm_ids, ctx={}, ctx_per_id=[], seg=[], room=1):
@@ -9,11 +10,11 @@ def register_click(arm_id, ctx={}, ctx2={}, seg=[], room=1):
     _increment_stat('clicks', [arm_id], ctx, [ctx2], seg, room)
 
 
+# TODO: noise=0.0
 def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1):
     "return arm ids sorted by given stat (descending), and stat values"
     segment = _segment_str(ctx, seg)
     ctx_items = tuple(ctx.items()) # optimization
-    # DB SEPECIFIC?
     if ctx:
         keys = [f'{stat}-ctx:{a}:{k}:{v}' for k,v in ctx_items for a in arm_ids]
         cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
@@ -23,12 +24,13 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1):
         keys = [f'{stat}:{a}' for a in arm_ids]
         cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
         stat_values = [cache.get(f'{stat}:{a}',0) for a in arm_ids]
-    # /DB SEPECIFIC?
     by_value = sorted(zip(arm_ids,stat_values), key=lambda x:x[1], reverse=True)
     sorted_ids = [x[0] for x in by_value]
     values = [x[1] for x in by_value]
     return sorted_ids, values
 
+# NOTE: all calculate_* functions will be refactored as they use the same code pattern
+#       they repeat the code for now to make it easier to understand
 
 def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
     "calculate click-through rate for each arm and context"
@@ -56,7 +58,7 @@ def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
 
 
 def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
-    "calculate upper confidence band (UCB1) for each arm and context"
+    "calculate upper confidence bound (UCB1) for each arm and context"
     stat = 'ucb1' # STAT SPECIFIC
     ctx_items = tuple(ctx.items()) # optimization
     segment = _segment_str(ctx, seg)
@@ -85,7 +87,7 @@ def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
 
 
 def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
-    "calculate bayesian upper confidence band (BUCB) for each arm and context, zscore=1.96 for 95% confidence (normal distribution))"
+    "calculate bayesian upper confidence bound (BUCB) for each arm and context, zscore=1.96 for 95% confidence (normal distribution))"
     stat = 'bucb' # STAT SPECIFIC
     ctx_items = tuple(ctx.items()) # optimization
     segment = _segment_str(ctx, seg)
@@ -112,6 +114,36 @@ def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
             kv_pairs.append((key,val))
     _set_many(f'{room}:{segment}', kv_pairs)
 
+
+def calculate_tsbd(arm_ids, ctx={}, seg=[], room=1):
+    "calculate Thompson Sampling over Beta Distribution for each arm and context"
+    stat = 'tsbd' # STAT SPECIFIC
+    ctx_items = tuple(ctx.items()) # optimization
+    segment = _segment_str(ctx, seg)
+    # cache values from DB
+    keys = _get_keys(arm_ids, ctx_items) + ['views-agg']
+    cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
+    #
+    kv_pairs = []
+    for arm_id in arm_ids:
+        arm_views = cache.get(f'views:{arm_id}',1)
+        arm_clicks = cache.get(f'clicks:{arm_id}',0)
+        ctr = arm_clicks / arm_views
+        alpha = arm_clicks + 1            # STAT SPECIFIC
+        beta = arm_views - arm_clicks + 1 # STAT SPECIFIC
+        val = betavariate(alpha, beta)    # STAT SPECIFIC
+        key = f'{stat}:{arm_id}'
+        kv_pairs.append((key,val))
+        for k,v in ctx_items:
+            arm_views = cache.get(f'views-ctx:{arm_id}:{k}:{v}',1)
+            arm_clicks = cache.get(f'clicks-ctx:{arm_id}:{k}:{v}',0)
+            ctr = arm_clicks / arm_views
+            alpha = arm_clicks + 1            # STAT SPECIFIC
+            beta = arm_views - arm_clicks + 1 # STAT SPECIFIC
+            val = betavariate(alpha, beta)    # STAT SPECIFIC
+            key = f'{stat}-ctx:{arm_id}:{k}:{v}'
+            kv_pairs.append((key,val))
+    _set_many(f'{room}:{segment}', kv_pairs)
 
 # ---[ internal ]--------------------------------------------------------------
 
