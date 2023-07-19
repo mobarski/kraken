@@ -17,20 +17,22 @@ def random_click(arm_ids, arm_config, ctx={}, no_click_weight=0, click_weight=1)
 def sim_one(core, config):
 	n_disp = config.get('n_disp',1)
 	no_click_weight = config.get('no_click_weight',10)
-	click_weight = config.get('click_weight',1) # TODO (when ctx=={})
+	click_weight = config.get('click_weight',1)
 	stat = config.get('stat','ucb1')
 	room = config.get('room',1)
 	pool = config.get('pool',[])
 	ctx_config = config.get('ctx_config',{})
 	arm_config = config.get('arm_config',{})
+	recalc_prob = config.get('recalc_prob',1.0)
+	noise = config.get('noise',0.0) # TODO
 	#
 	ctx = random_ctx(ctx_config)
 	#
-	if random()<=1.0: # TODO: param
+	if random()<=recalc_prob:
 		if   stat=='ctr':  core.calculate_ctr(pool,  ctx, room=room) # core_base: 14k/s
 		elif stat=='ucb1': core.calculate_ucb1(pool, ctx, room=room) # core_base: 12k/s
 		elif stat=='tsbd': core.calculate_tsbd(pool, ctx, room=room) # core_base:  8k/s
-	ids,vals = core.sorted_by_stat(stat, pool, ctx, room=room)
+	ids,vals = core.sorted_by_stat(stat, pool, ctx, room=room, noise=noise)
 	disp_ids = ids[:n_disp]
 	core.register_views(disp_ids, ctx, room=room)
 	#
