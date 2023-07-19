@@ -1,3 +1,4 @@
+from random import randint,random
 
 def random_ctx(ctx_config):
 	ctx = {}
@@ -6,16 +7,39 @@ def random_ctx(ctx_config):
 		ctx[k] = _weighted_choice(options, weights)
 	return ctx
 
-def random_click(arm_ids, arm_config, ctx={}, no_click_weight=0):
+def random_click(arm_ids, arm_config, ctx={}, no_click_weight=0, click_weight=1):
 	kv_list = [f'{k}:{v}' for k,v in ctx.items()]
 	kv_weights = [arm_config[kv] for kv in kv_list]
 	weights = [sum(w) for w in zip(*kv_weights)]
-	arm_weights = [no_click_weight] + [weights[i-1] for i in arm_ids]
+	arm_weights = [no_click_weight] + [weights[i-1] if ctx else click_weight for i in arm_ids]
 	return _weighted_choice(tuple([None]+arm_ids), tuple(arm_weights))
+
+def sim_one(core, config):
+	n_disp = config.get('n_disp',1)
+	no_click_weight = config.get('no_click_weight',10)
+	click_weight = config.get('click_weight',1) # TODO (when ctx=={})
+	stat = config.get('stat','ucb1')
+	room = config.get('room',1)
+	pool = config.get('pool',[])
+	ctx_config = config.get('ctx_config',{})
+	arm_config = config.get('arm_config',{})
+	#
+	ctx = random_ctx(ctx_config)
+	#
+	if random()<=1.0: # TODO: param
+		if   stat=='ctr':  core.calculate_ctr(pool,  ctx, room=room) # core_base: 14k/s
+		elif stat=='ucb1': core.calculate_ucb1(pool, ctx, room=room) # core_base: 12k/s
+		elif stat=='tsbd': core.calculate_tsbd(pool, ctx, room=room) # core_base:  8k/s
+	ids,vals = core.sorted_by_stat(stat, pool, ctx, room=room)
+	disp_ids = ids[:n_disp]
+	core.register_views(disp_ids, ctx, room=room)
+	#
+	click_id = random_click(disp_ids, arm_config, ctx, no_click_weight, click_weight)
+	if click_id:
+		core.register_click(click_id, ctx, room=room)
 
 # ---[ internal ]--------------------------------------------------------------
 
-from random import randint
 from functools import lru_cache
 
 def _weighted_choice(options: tuple, weights: tuple):
@@ -34,26 +58,25 @@ def _get_options_array(options, weights):
 
 # ---[ sandbox ]---------------------------------------------------------------
 
-ctx_config = {
-	'gender': [('m','f'), (45, 55)],
-	'platform': [('web','mobile','tv'), (20, 50, 30)], 
-}
-
-arm_config = {
-	'gender:m': [1,1,1, 2,2,2, 3,3,4],
-	'gender:f': [4,4,4, 3,3,2, 2,1,1],
-	'platform:web':    [1,2,3, 1,2,3, 4,5,1],
-	'platform:mobile': [2,2,4, 2,3,4, 1,1,3],
-	'platform:tv':     [1,1,1, 2,2,2, 3,3,3],
-	'pos:1': [5,5,5, 5,5,5, 5,5,5],
-	'pos:2': [3,3,3, 3,3,3, 3,3,3],
-	'pos:3': [1,1,1, 1,1,1, 1,1,1],
-}
-
-pool = [1,2,3,4,5,6,7,8,9]
-
 if __name__=="__main__":
+	ctx_config = {
+		'gender': [('m','f'), (45, 55)],
+		'platform': [('web','mobile','tv'), (20, 50, 30)], 
+	}
+	arm_config = {
+		'gender:m': [1,1,9, 2,2,2, 3,3,4],
+		'gender:f': [4,4,4, 3,3,2, 2,1,1],
+		'platform:web':    [1,2,3, 1,2,3, 4,5,1],
+		'platform:mobile': [2,2,4, 2,3,4, 1,9,3],
+		'platform:tv':     [1,1,1, 2,9,2, 3,3,3],
+		'pos:1': [5,5,5, 5,5,5, 5,5,5],
+		'pos:2': [3,3,3, 3,3,3, 3,3,3],
+		'pos:3': [1,1,1, 1,1,1, 1,1,1],
+	}
+	pool = [1,2,3,4,5,6,7,8,9]
+	#
 	ctx = random_ctx(ctx_config)
 	print(ctx)
-	print(random_click(pool, arm_config, ctx))
+	print(random_click(pool, arm_config, ctx={}, no_click_weight=0, click_weight=1))
+
 

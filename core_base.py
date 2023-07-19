@@ -17,12 +17,12 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1):
     ctx_items = tuple(ctx.items()) # optimization
     if ctx:
         keys = [f'{stat}-ctx:{a}:{k}:{v}' for k,v in ctx_items for a in arm_ids]
-        cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
+        cache = db_get_many(f'{room}:{segment}', keys, as_type=float)
         kv_stat_values = [[cache.get(f'{stat}-ctx:{a}:{k}:{v}',0) for k,v in ctx_items] for a in arm_ids]
         stat_values = [sum(x)/len(x) for x in kv_stat_values] # TODO: replace sum/len with something better?
     else:
         keys = [f'{stat}:{a}' for a in arm_ids]
-        cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
+        cache = db_get_many(f'{room}:{segment}', keys, as_type=float)
         stat_values = [cache.get(f'{stat}:{a}',0) for a in arm_ids]
     by_value = sorted(zip(arm_ids,stat_values), key=lambda x:x[1], reverse=True)
     sorted_ids = [x[0] for x in by_value]
@@ -39,7 +39,7 @@ def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
     segment = _segment_str(ctx, seg)
     # cache values from DB
     keys = _get_keys(arm_ids, ctx_items)
-    cache = _get_cache(f'{room}:{segment}', keys)
+    cache = db_get_many(f'{room}:{segment}', keys)
     #
     kv_pairs = []
     for arm_id in arm_ids:
@@ -54,7 +54,7 @@ def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
             val = cache.get(key_c,0) / cache.get(key_v,1) # STAT SPECIFIC
             key = f'{stat}-ctx:{arm_id}:{k}:{v}'
             kv_pairs.append((key,val))
-    _set_many(f'{room}:{segment}', kv_pairs)
+    db_set_many(f'{room}:{segment}', kv_pairs)
 
 
 def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
@@ -64,7 +64,7 @@ def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
     segment = _segment_str(ctx, seg)
     # cache values from DB
     keys = _get_keys(arm_ids, ctx_items) + ['views-agg']
-    cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
+    cache = db_get_many(f'{room}:{segment}', keys, as_type=float)
     #
     total_views = cache.get(f'views-agg',1) # STAT SPECIFIC
     log_total_views = log(total_views)      # STAT SPECIFIC
@@ -83,36 +83,7 @@ def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
             val = ctr + alpha*sqrt(2*log_total_views/arm_views) # STAT SPECIFIC
             key = f'{stat}-ctx:{arm_id}:{k}:{v}'
             kv_pairs.append((key,val))
-    _set_many(f'{room}:{segment}', kv_pairs)
-
-
-def calculate_bucb(arm_ids, ctx={}, seg=[], room=1, zscore=1.96):
-    "calculate bayesian upper confidence bound (BUCB) for each arm and context, zscore=1.96 for 95% confidence (normal distribution))"
-    stat = 'bucb' # STAT SPECIFIC
-    ctx_items = tuple(ctx.items()) # optimization
-    segment = _segment_str(ctx, seg)
-    # cache values from DB
-    keys = _get_keys(arm_ids, ctx_items) + ['views-agg']
-    cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
-    #
-    kv_pairs = []
-    for arm_id in arm_ids:
-        arm_views = cache.get(f'views:{arm_id}',1)
-        arm_clicks = cache.get(f'clicks:{arm_id}',0)
-        ctr = arm_clicks / arm_views
-        sigma = sqrt(ctr*(1-ctr)/arm_views) # STAT SPECIFIC
-        val = ctr + zscore*sigma            # STAT SPECIFIC
-        key = f'{stat}:{arm_id}'
-        kv_pairs.append((key,val))
-        for k,v in ctx_items:
-            arm_views = cache.get(f'views-ctx:{arm_id}:{k}:{v}',1)
-            arm_clicks = cache.get(f'clicks-ctx:{arm_id}:{k}:{v}',0)
-            ctr = arm_clicks / arm_views
-            sigma = sqrt(ctr*(1-ctr)/arm_views) # STAT SPECIFIC
-            val = ctr + zscore*sigma            # STAT SPECIFIC
-            key = f'{stat}-ctx:{arm_id}:{k}:{v}'
-            kv_pairs.append((key,val))
-    _set_many(f'{room}:{segment}', kv_pairs)
+    db_set_many(f'{room}:{segment}', kv_pairs)
 
 
 def calculate_tsbd(arm_ids, ctx={}, seg=[], room=1):
@@ -122,7 +93,7 @@ def calculate_tsbd(arm_ids, ctx={}, seg=[], room=1):
     segment = _segment_str(ctx, seg)
     # cache values from DB
     keys = _get_keys(arm_ids, ctx_items) + ['views-agg']
-    cache = _get_cache(f'{room}:{segment}', keys, as_type=float)
+    cache = db_get_many(f'{room}:{segment}', keys, as_type=float)
     #
     kv_pairs = []
     for arm_id in arm_ids:
@@ -143,7 +114,7 @@ def calculate_tsbd(arm_ids, ctx={}, seg=[], room=1):
             val = betavariate(alpha, beta)    # STAT SPECIFIC
             key = f'{stat}-ctx:{arm_id}:{k}:{v}'
             kv_pairs.append((key,val))
-    _set_many(f'{room}:{segment}', kv_pairs)
+    db_set_many(f'{room}:{segment}', kv_pairs)
 
 # ---[ internal ]--------------------------------------------------------------
 
@@ -177,22 +148,26 @@ def _increment_stat(stat, arm_ids, ctx, ctx_per_id, seg, room):
         for k,v in aux_ctx.items():
             todo.append(f'{stat}-ctx:{arm_id}:{k}:{v}')
             todo.append(f'{stat}-agg-ctx:{k}:{v}')
-    _increment_by_one(f'{room}:{segment}', todo)
+    db_increment_by_one(f'{room}:{segment}', todo)
 
 # ---[ db specific ]----------------------------------------------------------
 
 db = {}
 
-def sync():
+def db_sync():
     pass # not used
 
-def _increment_by_one(key, fields):
-    for k in fields:
-        db[f'{key}|{k}'] = db.get(f'{key}|{k}',0) + 1
-
-def _set_many(key, kv_pairs):
+def db_set_many(key, kv_pairs):
     for k,v in kv_pairs:
         db[f'{key}|{k}'] = v
 
-def _get_cache(key, fields, as_type=int):
+def db_get_many(key, fields, as_type=int) -> dict:
     return {k:as_type(db.get(f'{key}|{k}',0)) for k in fields if db.get(f'{key}|{k}')}
+
+def db_increment_by_one(key, fields):
+    for k in fields:
+        db[f'{key}|{k}'] = db.get(f'{key}|{k}',0) + 1
+
+def db_get_snapshot(key):
+    return {k.partition('|')[2]:db[k] for k in db if k.startswith(f'{key}|')}
+

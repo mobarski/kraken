@@ -20,7 +20,7 @@ Kraken is a Contextual Bandits engine designed for:
 Features include:
 
 - multiple experiments (also known as rooms)
-- multiple algorithms (Epsilon Greedy, UCB1, Bayesian UCB, Thompson Sampling over Beta Distribution)
+- multiple algorithms (Epsilon Greedy, UCB1, Thompson Sampling over Beta Distribution)
 - context handling
 - segmentation for more granular control and analysis
 - dynamic item pool
@@ -148,43 +148,7 @@ end
 
 ```
 
-### BUCB (Bayesian UCB) calculation
 
-BUCB = ctr + zscore * sigma
-
-sigma = sqrt(ctr*(1-ctr)/arm_views)
-
-[zscore](https://en.wikipedia.org/wiki/Standard_normal_table): confidence level for normal distribution, 1.96 for 95%
-
-```mermaid
-sequenceDiagram
-
-note over core,db : db operations group 1 (@room:@segment)
-loop arm_ids
-core ->> db : GET views:@arm
-core ->> db : GET clicks:@arm
-loop ctx_items
-core ->> db : GET views-ctx:@arm:@ctx
-core ->> db : GET clicks-ctx:@arm:@ctx
-end
-end
-
-note over core : BUCB = ctr + zscore * sigma<br>sigma = sqrt(ctr*(1-ctr)/arm_views)
-loop arm_ids
-core --> core : calculate BUCB
-loop ctx_items
-core --> core : calculate BUCB for CTX
-end
-end
-
-note over core,db : db operations group 2 (@room:@segment)
-loop arm_ids
-core ->> db : SET bucb:@arm
-loop ctx_items
-core ->> db : SET bucb-ctx:@arm:@ctx
-end
-end
-```
 
 ### TSBD (Thompson Sampling over Beta Distribution) calculation
 
