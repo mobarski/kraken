@@ -23,7 +23,7 @@ def sorted_by_stat(stat, arm_ids, ctx={}, seg=[], room=1, noise=0.0):
         cache = db_get_many(f'{room}:{segment}', keys, as_type=float)
         stat_values = [cache.get(f'{stat}:{a}',0) for a in arm_ids]
     if noise:
-        stat_values = [x*(1+noise*2*(random()-0.5)) for x in stat_values]
+        stat_values = [x+noise*2*(random()-0.5) for x in stat_values]
     by_value = sorted(zip(arm_ids,stat_values), key=lambda x:x[1], reverse=True)
     sorted_ids = [x[0] for x in by_value]
     values = [x[1] for x in by_value]
