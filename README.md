@@ -24,18 +24,21 @@ Features include:
 - context handling
 - segmentation for more granular control and analysis
 - dynamic item pool
+- GUI for Monte Carlo simulator
 
 
 
 Features not yet included:
 
-- GUI for Monte Carlo simulator
-
 - storing configuration in the DB itself
-
 - arm decay handling
+- related experiments
 
-  
+
+
+![image](static/simulator-1.png)
+
+
 
 ## Installation
 
@@ -192,7 +195,42 @@ end
 
 
 
+## Notes
 
+### Example Use Cases
+
+**Simple**:
+
+- optimize articles to show in a section
+- optimize article's title
+- optimize article's cover
+- optimize which section to show (arm_id = section_id)
+
+**Advanced**:
+
+- optimize article's title AND cover (2 related experiments)
+- optimize article's title/cover AND which articles to show in a section (3 related experiments)
+- optimize article's title AND cover AND which articles to show in a section (3 related experiments)
+- optimize articles to show in many sections (many unrelated experiments)
+
+### Reporting needs
+
+**optimize article's title/photo** (small number of arms)
+
+- context-free:
+  - CTR of each ARM
+  - VIEWS of each ARM
+  - CLICKS of each ARM
+- contextual
+  - CTR of each CTX
+  - VIEWS of each CTX
+  - CLICKS of each CTX
+  - CTR of each ARM for CTX
+  - VIEWS of each ARM for CTX
+  - CLICKS of each ARM for CTX
+
+- contextual - segmented
+  - TODO
 
 
 

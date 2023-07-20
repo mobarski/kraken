@@ -57,8 +57,9 @@ def calculate_ctr(arm_ids, ctx={}, seg=[], room=1):
     db_set_many(f'{room}:{segment}', kv_pairs)
 
 
-def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=1.0):
+def calculate_ucb1(arm_ids, ctx={}, seg=[], room=1, alpha=None):
     "calculate upper confidence bound (UCB1) for each arm and context"
+    alpha = 1.0 if alpha is None else alpha # STAT SPECIFIC
     stat = 'ucb1' # STAT SPECIFIC
     ctx_items = tuple(ctx.items()) # optimization
     segment = _segment_str(ctx, seg)

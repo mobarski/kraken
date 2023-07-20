@@ -1,4 +1,13 @@
-from random import randint,random
+from random import Random
+
+G1 = Random()
+G2 = Random()
+G3 = Random()
+
+def set_random_seed(x):
+	G1.seed(x)
+	G2.seed(x)
+	G3.seed(x)
 
 def random_ctx(ctx_config):
 	ctx = {}
@@ -18,25 +27,33 @@ def sim_one(core, config):
 	n_disp = config.get('n_disp',1)
 	no_click_weight = config.get('no_click_weight',10)
 	click_weight = config.get('click_weight',1)
-	stat = config.get('stat','ucb1')
+	algo = config.get('algo','ucb1')
+	stat = 'ctr' if algo in ['epsg'] else algo
 	room = config.get('room',1)
 	pool = config.get('pool',[])
 	ctx_config = config.get('ctx_config',{})
 	arm_config = config.get('arm_config',{})
 	recalc_prob = config.get('recalc_prob',1.0)
 	noise = config.get('noise',0.0) # TODO
+	param = config.get('param')
+	pass_ctx = config.get('pass_ctx',True)
 	#
-	ctx = random_ctx(ctx_config)
+	ctx = real_ctx = random_ctx(ctx_config)
+	if not pass_ctx:
+		ctx = {}
 	#
-	if random()<=recalc_prob:
+	if G1.random()<=recalc_prob:
 		if   stat=='ctr':  core.calculate_ctr(pool,  ctx, room=room) # core_base: 14k/s
-		elif stat=='ucb1': core.calculate_ucb1(pool, ctx, room=room) # core_base: 12k/s
+		elif stat=='ucb1': core.calculate_ucb1(pool, ctx, room=room, alpha=param) # core_base: 12k/s
 		elif stat=='tsbd': core.calculate_tsbd(pool, ctx, room=room) # core_base:  8k/s
 	ids,vals = core.sorted_by_stat(stat, pool, ctx, room=room, noise=noise)
+	if algo=='epsg':
+		if G2.random()<(param or 0):
+			G2.shuffle(ids)
 	disp_ids = ids[:n_disp]
 	core.register_views(disp_ids, ctx, room=room)
 	#
-	click_id = random_click(disp_ids, arm_config, ctx, no_click_weight, click_weight)
+	click_id = random_click(disp_ids, arm_config, real_ctx, no_click_weight, click_weight)
 	if click_id:
 		core.register_click(click_id, ctx, room=room)
 
@@ -47,7 +64,7 @@ from functools import lru_cache
 def _weighted_choice(options: tuple, weights: tuple):
 	# TODO: better algo
 	array = _get_options_array(options, weights)
-	i = randint(0, len(array)-1)
+	i = G3.randint(0, len(array)-1)
 	return array[i]
 
 @lru_cache()
