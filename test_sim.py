@@ -3,9 +3,9 @@ from tqdm import tqdm
 
 import sim
 
-#import core_kv as core
+import core_kv as core
 #import core_redis as core
-import core_base as core
+#import core_base as core
 
 ctx_config = {
 	'gender': [('m','f'), (45, 55)],
