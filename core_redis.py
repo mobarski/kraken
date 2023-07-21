@@ -28,8 +28,11 @@ def db_get_snapshot(key):
     # TODO: type conversion
     return db.hgetall(key)
 
+def db_scan(prefix):
+    ... # TODO
+
 core_base.db_sync = db_sync
 core_base.db_set_many = db_set_many
 core_base.db_get_many = db_get_many
 core_base.db_increment_by_one = db_increment_by_one
-
+core_base.db_scan = db_scan

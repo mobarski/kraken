@@ -172,3 +172,5 @@ def db_increment_by_one(key, fields):
 def db_get_snapshot(key):
     return {k.partition('|')[2]:db[k] for k in db if k.startswith(f'{key}|')}
 
+def db_scan(prefix):
+    return list(sorted({k.partition('|')[0] for k in db if k.startswith(prefix)}))

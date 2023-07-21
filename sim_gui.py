@@ -82,7 +82,7 @@ with st.sidebar:
     with st.expander('context', expanded=True):
         use_ctx = st.multiselect('context to use in the simulation', ['gender','age','platform','population','region'], ['gender','platform'])
         pass_ctx = st.checkbox('pass context to the bandit', value=True)
-        use_seg = st.multiselect('🚧 segment the context by 🚧', use_ctx if pass_ctx else [])
+        use_seg = st.multiselect('segment the context by', use_ctx if pass_ctx else [])
     with st.expander('context weights'):
         ctx_df = ctx_df.loc[ctx_df['key'].isin(use_ctx)]
         st.data_editor(ctx_df, disabled=('key','value'), column_config={'_index':None}, width=300)
@@ -90,8 +90,8 @@ with st.sidebar:
         sc1,sc2 = st.columns(2)
         arms = sc1.number_input('number of arms', value=3, min_value=2, max_value=1000)
         seed1 = sc2.number_input('random seed (arms)', value=43)
-        nl_freq = sc1.number_input('non-linear combinations', value=0, min_value=0, max_value=5, step=1)
-        nl_freq = sc2.number_input('non-linearity strength',  value=3.0, min_value=1.5, max_value=5.0, step=0.5)
+        nl_freq = sc1.number_input('🚧 non-linear combinations', value=0, min_value=0, max_value=5, step=1)
+        nl_freq = sc2.number_input('🚧 non-linearity strength',  value=3.0, min_value=1.5, max_value=5.0, step=0.5)
         if st.button("randomize arms weights", type='primary', use_container_width=True):
             random.seed(seed1)
             arm_df = get_arm_df(ctx_df)
@@ -119,11 +119,24 @@ with st.sidebar:
                 ss['rows'] = rows
     st.markdown(ABOUT)
 
+if ss.get('rows'):
+    rows = ss['rows']
+    df = pd.DataFrame(rows, columns=['trial','seg','arm','ctx','clicks','views','ctr'])
+    seg_list = list(sorted(df['seg'].unique()))
+    if '' not in seg_list:
+        df_agg = df.groupby(['trial','arm','ctx']).agg({'clicks':'sum','views':'sum'}).reset_index()
+        df_agg['seg'] = ''
+        df_agg['ctr'] = df_agg['clicks'] / df_agg['views']
+        df_agg = df_agg.reindex(columns=['trial','seg','arm','ctx','clicks','views','ctr'])
+        df = pd.concat([df,df_agg])
+        seg_list = list(sorted(df['seg'].unique()))
+    #
+    df_final = df[df['trial']==trials]
+    ctx_list = list(sorted(df_final['ctx'].unique()))
+
 c12,c3a,c3b = st.columns([2,0.5,0.5])
 c12.title('Monte Carlo simulator for the Kraken engine (contextual MAB)')
-ctx_list = ['']+list(sorted([f'{x[0]}:{x[1]}' for x in ctx_config if x[0] in use_ctx]))
-seg_list = list(sorted([f'{x[0]}:{x[1]}' for x in ctx_config if x[0] in use_seg]))
-selected_seg = c3a.selectbox('🚧 segment 🚧', seg_list) 
+selected_seg = c3a.selectbox('segment', seg_list) 
 selected_ctx = c3b.selectbox('context', ctx_list)
 
 main = st.container()
@@ -131,9 +144,8 @@ c1,c2,c3=main.columns(3)
 
 
 if ss.get('rows'):
-    rows = ss['rows']
-    df = pd.DataFrame(rows, columns=['trial','arm','ctx','clicks','views','ctr'])
-    df1 = df[df['ctx']==selected_ctx]
+    df1 = df[(df['ctx']==selected_ctx) & (df['seg']==selected_seg)]
+    df0 = df[df['seg']==selected_seg]
     #
     df2 = df1[df1['trial']==trials]
     c1,c2,c3 = main.columns(3)
@@ -148,7 +160,7 @@ if ss.get('rows'):
     c2.line_chart(df3_clicks,x='trial', height=300)
     c3.line_chart(df3_views,x='trial', height=300)
     #
-    df4 = df[df['trial']==trials]
+    df4 = df0[df0['trial']==trials]
     #df4 = df4[df4['ctx']!='']
     df4_ctr = df4.pivot_table(index=['ctx'], columns=['arm'], values='ctr').reset_index()
     if 1:
@@ -160,11 +172,14 @@ if ss.get('rows'):
     df4_views = df4.pivot_table(index=['ctx'], columns=['arm'], values='views').reset_index()
     c3.bar_chart(df4_views, x='ctx')
     #
-    df5 = df[df['trial']==trials].groupby(['ctx']).agg({'clicks':'sum','views':'sum'}).reset_index()
+    #df5 = df[df['trial']==trials].groupby(['ctx']).agg({'clicks':'sum','views':'sum'}).reset_index()
     #
     c1.dataframe(df4_ctr.style.background_gradient(cmap = st_cmap, axis=1).format(precision=4), use_container_width=True)
     c2.dataframe(df4_clicks.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
     c3.dataframe(df4_views.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
+    #
+    c1.dataframe(df4)
+    c2.dataframe(df_agg)
 
 # TODO: reward over time VS context
 # TODO: cumulative reward over time VS context

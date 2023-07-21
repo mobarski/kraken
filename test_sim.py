@@ -26,7 +26,7 @@ arm_config = {
 pool = [1,2,3,4,5,6,7,8,9]
 pool = [1,2,3]
 
-
+# TODO: seg, a VS a, seg ???
 def sim_many(n, config):
 	room = config.get('room',1)
 	pool = config.get('pool',[])
@@ -36,24 +36,26 @@ def sim_many(n, config):
 		sim.sim_one(core, config)
 		#
 		if (i+1) % step == 0:
-			data = core.db_get_snapshot(f'{room}:seg:') # TODO: seg
-			c = data.get('clicks-agg',0)
-			v = data.get('views-agg',1)
-			#print(f'{i+1:6d} {c:6d} {v:6d} {c/v:.3f}')
-			for a in pool:
-				ca = data.get(f'clicks:{a}',0)
-				va = data.get(f'views:{a}',1)
-				rec = i+1, a, '', ca, va, ca/va
-				out.append(rec)
-				# ctx
-				if 1:
-					for k,v in data.items():
-						if k.startswith(f'views-ctx:{a}'):
-							ctx_kv = k.partition(f':{a}:')[2]
-							cc = data.get(f'clicks-ctx:{a}:{ctx_kv}',0)
-							cv = data.get(f'views-ctx:{a}:{ctx_kv}',1)
-							rec = i+1, a, ctx_kv, cc, cv, cc/cv
-							out.append(rec)
+			segments = [x.partition(':seg:')[2] for x in core.db_scan(f'{room}:seg:')]
+			for seg in segments:
+				data = core.db_get_snapshot(f'{room}:seg:{seg}')
+				c = data.get('clicks-agg',0)
+				v = data.get('views-agg',1)
+				#print(f'{i+1:6d} {c:6d} {v:6d} {c/v:.3f}')
+				for a in pool:
+					ca = data.get(f'clicks:{a}',0)
+					va = data.get(f'views:{a}',1)
+					rec = i+1, seg, a, '', ca, va, ca/va
+					out.append(rec)
+					# ctx
+					if 1:
+						for k,v in data.items():
+							if k.startswith(f'views-ctx:{a}'):
+								ctx_kv = k.partition(f':{a}:')[2]
+								cc = data.get(f'clicks-ctx:{a}:{ctx_kv}',0)
+								cv = data.get(f'views-ctx:{a}:{ctx_kv}',1)
+								rec = i+1, seg, a, ctx_kv, cc, cv, cc/cv
+								out.append(rec)
 	core.db_sync()
 	return out
 
