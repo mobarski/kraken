@@ -37,25 +37,25 @@ def sim_one(core, config):
 	noise = config.get('noise',0.0) # TODO
 	param = config.get('param')
 	pass_ctx = config.get('pass_ctx',True)
+	seg = config.get('seg',[]) or []
 	#
-	ctx = real_ctx = random_ctx(ctx_config)
-	if not pass_ctx:
-		ctx = {}
+	ctx = random_ctx(ctx_config)
+	stats_ctx = ctx if pass_ctx else {} # TODO: better names
 	#
 	if G1.random()<=recalc_prob:
-		if   stat=='ctr':  core.calculate_ctr(pool,  ctx, room=room) # core_base: 14k/s
-		elif stat=='ucb1': core.calculate_ucb1(pool, ctx, room=room, alpha=param) # core_base: 12k/s
-		elif stat=='tsbd': core.calculate_tsbd(pool, ctx, room=room) # core_base:  8k/s
-	ids,vals = core.sorted_by_stat(stat, pool, ctx, room=room, noise=noise)
+		if   stat=='ctr':  core.calculate_ctr(pool,  ctx, room=room, seg=seg) # core_base: 14k/s
+		elif stat=='ucb1': core.calculate_ucb1(pool, ctx, room=room, seg=seg, alpha=param) # core_base: 12k/s
+		elif stat=='tsbd': core.calculate_tsbd(pool, ctx, room=room, seg=seg) # core_base:  8k/s
+	ids,vals = core.sorted_by_stat(stat, pool, stats_ctx, room=room, seg=seg, noise=noise)
 	if algo=='epsg':
 		if G2.random()<(param or 0):
 			G2.shuffle(ids)
 	disp_ids = ids[:n_disp]
-	core.register_views(disp_ids, ctx, room=room)
+	core.register_views(disp_ids, ctx, room=room, seg=seg)
 	#
-	click_id = random_click(disp_ids, arm_config, real_ctx, no_click_weight, click_weight)
+	click_id = random_click(disp_ids, arm_config, ctx, no_click_weight, click_weight)
 	if click_id:
-		core.register_click(click_id, ctx, room=room)
+		core.register_click(click_id, ctx, room=room, seg=seg)
 
 # ---[ internal ]--------------------------------------------------------------
 

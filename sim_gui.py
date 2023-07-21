@@ -5,20 +5,45 @@ import random
 import test_sim
 import sim
 
-st.set_page_config(layout='wide')
+# GRADIENTS
+from matplotlib.colors import LinearSegmentedColormap
+# streamlit/frontend/lib/src/theme/primitives/colors.ts
+# #0068c9 dark blue
+# #83c9ff light blue
+# #ff2b2b dark red
+# #ffabab light red
+# #29b09d dark green
+# #7defa1 light green
+# #ff8700 dark orange
+# #ffd16a light orange
+
+#st_cmap = LinearSegmentedColormap.from_list('st_cmap', ['#0068c9','#ffffff','#ff2b2b']) # dark blue, white, dark red
+st_cmap = LinearSegmentedColormap.from_list('st_cmap', ['#83c9ff','#ffffff','#ffabab']) # light blue, white, light red
+#st_cmap = LinearSegmentedColormap.from_list('st_cmap', ['#3d9df3','#ffffff','#ff8c8c'])
+# /GRADIENTS
+
+st.set_page_config(layout='wide', page_title='McKraken') #, page_icon='🦑')
 ss = st.session_state
 
 css = """
+/* sidebar */
 .css-1544g2n {
  padding-top: 48px;
 }
+/* main */
 .css-z5fcl4 {
  position: relative;
- padding-top: 48px;
+ padding-top: 36px;
 }
 """
 st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
+
+ABOUT = """
+Made by [Maciej Obarski](https://www.linkedin.com/in/mobarski/).\n
+Follow me on [Twitter](https://twitter.com/KerbalFPV) for news and updates.\n
+Source code can be found [here](https://github.com/mobarski/kraken).
+"""
 
 ALGO = {
     'epsg':'Epsilon Greedy',
@@ -53,47 +78,57 @@ def df_to_ctx_weights(ctx_df):
     return {x[0]:(tuple(x[1]),tuple(x[2])) for x in rows}
 
 
-main = st.container()
-
-
 with st.sidebar:
-    seed = st.number_input('random seed', value=43)
     with st.expander('context', expanded=True):
-        use_ctx = st.multiselect('context to use', ['gender','age','platform','population','region'], ['gender','platform'])
+        use_ctx = st.multiselect('context to use in the simulation', ['gender','age','platform','population','region'], ['gender','platform'])
         pass_ctx = st.checkbox('pass context to the bandit', value=True)
+        use_seg = st.multiselect('🚧 segment the context by 🚧', use_ctx if pass_ctx else [])
     with st.expander('context weights'):
         ctx_df = ctx_df.loc[ctx_df['key'].isin(use_ctx)]
         st.data_editor(ctx_df, disabled=('key','value'), column_config={'_index':None}, width=300)
     with st.expander('arms', expanded=True):
-        arms = st.number_input('number of arms', value=3, min_value=2, max_value=1000)
-        if st.button("randomize weights", use_container_width=True):
-            random.seed(seed)
-            sim.set_random_seed(seed)
+        sc1,sc2 = st.columns(2)
+        arms = sc1.number_input('number of arms', value=3, min_value=2, max_value=1000)
+        seed1 = sc2.number_input('random seed (arms)', value=43)
+        nl_freq = sc1.number_input('non-linear combinations', value=0, min_value=0, max_value=5, step=1)
+        nl_freq = sc2.number_input('non-linearity strength',  value=3.0, min_value=1.5, max_value=5.0, step=0.5)
+        if st.button("randomize arms weights", type='primary', use_container_width=True):
+            random.seed(seed1)
             arm_df = get_arm_df(ctx_df)
             ss['arm_df'] = arm_df
         arm_df = ss.get('arm_df')
     with st.expander('arm weights'):
         st.data_editor(arm_df, disabled=('arm','key','value'), column_config={'_index':None}, width=300)
     with st.expander('trials', expanded=True):
-        trials = st.selectbox('trials to simulate', [1,10,100,1_000,10_000,100_000], index=4)
-        n_display = st.number_input('arms displayed per trial', value=1, min_value=1, max_value=arms)
-        no_click = st.number_input('no click weight', value=100, step=10)
+        sc1,sc2 = st.columns(2)
+        trials = sc1.selectbox('trials to simulate', [1,10,100,1_000,10_000,100_000], index=4)
+        data_step = sc1.selectbox('data step', [2,5,10,50,100,500], index=3)
+        n_display = sc2.number_input('arms pulled per trial', value=1, min_value=1, max_value=arms)
+        no_click = sc2.number_input('no click weight', value=100, step=50)
+        seed2 = sc2.number_input('random seed (trials)', value=43)
         algo = st.selectbox('algorithm', ['tsbd','ucb1','epsg'], format_func=ALGO.get)
         param_label,param_val = {'tsbd':(None,None),'ucb1':('alpha',1.0),'epsg':('epsilon',0.1)}[algo]
         algo_param = st.number_input(param_label, value=param_val, min_value=0.0, max_value=10.0, step=0.1) if param_label else None
-        if st.button('run', type='primary', use_container_width=True, disabled=arm_df is None):
-            random.seed(seed)
-            sim.set_random_seed(seed)
+        if st.button('run simulation', type='primary', use_container_width=True, disabled=arm_df is None):
+            sim.set_random_seed(seed2)
+            random.seed(seed2) # WHY TF this is needed ???
             with st.spinner('running'):
                 pool = list(range(1,arms+1))
                 test_sim.core.db.clear() # XXX
-                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=df_to_ctx_weights(ctx_df), arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx))
+                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=df_to_ctx_weights(ctx_df), arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg))
                 ss['rows'] = rows
+    st.markdown(ABOUT)
 
+c12,c3a,c3b = st.columns([2,0.5,0.5])
+c12.title('Monte Carlo simulator for the Kraken engine (contextual MAB)')
+ctx_list = ['']+list(sorted([f'{x[0]}:{x[1]}' for x in ctx_config if x[0] in use_ctx]))
+seg_list = list(sorted([f'{x[0]}:{x[1]}' for x in ctx_config if x[0] in use_seg]))
+selected_seg = c3a.selectbox('🚧 segment 🚧', seg_list) 
+selected_ctx = c3b.selectbox('context', ctx_list)
+
+main = st.container()
 c1,c2,c3=main.columns(3)
-c1.title('Contextual Bandit Simulator')
-ctx_list = ['']+list(sorted([f'{x[0]}:{x[1]}' for x in ctx_config if x[0] in use_ctx])) # XXX
-selected_ctx = c2.selectbox('context', ctx_list)
+
 
 if ss.get('rows'):
     rows = ss['rows']
@@ -109,14 +144,17 @@ if ss.get('rows'):
     df3_ctr = df1.pivot_table(index=['trial'], columns=['arm'], values='ctr').reset_index()
     df3_views = df1.pivot_table(index=['trial'], columns=['arm'], values='views').reset_index()
     df3_clicks = df1.pivot_table(index=['trial'], columns=['arm'], values='clicks').reset_index()
-    c1.line_chart(df3_ctr,x='trial')
-    c2.line_chart(df3_clicks,x='trial')
-    c3.line_chart(df3_views,x='trial')
+    c1.line_chart(df3_ctr,x='trial', height=300)
+    c2.line_chart(df3_clicks,x='trial', height=300)
+    c3.line_chart(df3_views,x='trial', height=300)
     #
     df4 = df[df['trial']==trials]
-    df4 = df4[df4['ctx']!='']
+    #df4 = df4[df4['ctx']!='']
     df4_ctr = df4.pivot_table(index=['ctx'], columns=['arm'], values='ctr').reset_index()
-    c1.bar_chart(df4_ctr, x='ctx')
+    if 1:
+        c1.bar_chart(df4_ctr, x='ctx')
+    else:
+        c1.bar_chart(df2,x='arm',y='ctr')
     df4_clicks = df4.pivot_table(index=['ctx'], columns=['arm'], values='clicks').reset_index()
     c2.bar_chart(df4_clicks, x='ctx')
     df4_views = df4.pivot_table(index=['ctx'], columns=['arm'], values='views').reset_index()
@@ -124,9 +162,9 @@ if ss.get('rows'):
     #
     df5 = df[df['trial']==trials].groupby(['ctx']).agg({'clicks':'sum','views':'sum'}).reset_index()
     #
-    c1.dataframe(df4_ctr.style.background_gradient(cmap ='coolwarm', axis=1).format(precision=4))
-    c2.dataframe(df4_clicks.style.background_gradient(cmap ='coolwarm', axis=1))
-    c3.dataframe(df4_views.style.background_gradient(cmap ='coolwarm', axis=1))
+    c1.dataframe(df4_ctr.style.background_gradient(cmap = st_cmap, axis=1).format(precision=4), use_container_width=True)
+    c2.dataframe(df4_clicks.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
+    c3.dataframe(df4_views.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
 
 # TODO: reward over time VS context
 # TODO: cumulative reward over time VS context

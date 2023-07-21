@@ -30,13 +30,13 @@ pool = [1,2,3]
 def sim_many(n, config):
 	room = config.get('room',1)
 	pool = config.get('pool',[])
-	X = 100
+	step = config.get('step',100)
 	out = []
 	for i in tqdm(range(n)):
 		sim.sim_one(core, config)
 		#
-		if (i+1) % X == 0:
-			data = core.db_get_snapshot(f'{room}:seg:')
+		if (i+1) % step == 0:
+			data = core.db_get_snapshot(f'{room}:seg:') # TODO: seg
 			c = data.get('clicks-agg',0)
 			v = data.get('views-agg',1)
 			#print(f'{i+1:6d} {c:6d} {v:6d} {c/v:.3f}')
