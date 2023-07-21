@@ -36,7 +36,7 @@ Features not yet included:
 
 
 
-![image](static/simulator-1.png)
+![image](static/simulator-2.png)
 
 
 
@@ -229,7 +229,7 @@ end
   - VIEWS of each ARM for CTX
   - CLICKS of each ARM for CTX
 
-- contextual - segmented
+- segmented
   - TODO
 
 
