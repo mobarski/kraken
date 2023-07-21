@@ -179,7 +179,6 @@ if ss.get('rows'):
     c3.dataframe(df4_views.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
     #
     c1.dataframe(df4)
-    c2.dataframe(df_agg)
 
 # TODO: reward over time VS context
 # TODO: cumulative reward over time VS context
