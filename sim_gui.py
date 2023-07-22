@@ -42,8 +42,9 @@ st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 ABOUT = """
 Made by [Maciej Obarski](https://www.linkedin.com/in/mobarski/).\n
 Follow me on [Twitter](https://twitter.com/KerbalFPV) for news and updates.\n
-Source code can be found [here](https://github.com/mobarski/kraken).
+Source code will be published [here](https://github.com/mobarski/kraken).
 """
+# Source code can be found [here](https://github.com/mobarski/kraken).
 
 ALGO = {
     'epsg':'Epsilon Greedy',
@@ -88,7 +89,7 @@ with st.sidebar:
         st.data_editor(ctx_df, disabled=('key','value'), column_config={'_index':None}, width=300)
     with st.expander('arms', expanded=True):
         sc1,sc2 = st.columns(2)
-        arms = sc1.number_input('number of arms', value=3, min_value=2, max_value=1000)
+        arms = sc1.number_input('number of arms', value=3, min_value=2, max_value=9)
         seed1 = sc2.number_input('random seed (arms)', value=43)
         nl_freq = sc1.number_input('🚧 non-linear combinations', value=0, min_value=0, max_value=5, step=1)
         nl_freq = sc2.number_input('🚧 non-linearity strength',  value=3.0, min_value=1.5, max_value=5.0, step=0.5)
@@ -101,7 +102,7 @@ with st.sidebar:
         st.data_editor(arm_df, disabled=('arm','key','value'), column_config={'_index':None}, width=300)
     with st.expander('trials', expanded=True):
         sc1,sc2 = st.columns(2)
-        trials = sc1.selectbox('trials to simulate', [1,10,100,1_000,10_000,100_000], index=4)
+        trials = sc1.selectbox('trials to simulate', [1,10,100,1_000,5_000, 10_000,20_000], index=4)
         data_step = sc1.selectbox('data step', [2,5,10,50,100,500], index=3)
         n_display = sc2.number_input('arms pulled per trial', value=1, min_value=1, max_value=arms)
         no_click = sc2.number_input('no click weight', value=100, step=50)
@@ -119,6 +120,8 @@ with st.sidebar:
                 ss['rows'] = rows
     st.markdown(ABOUT)
 
+seg_list = []
+ctx_list = []
 if ss.get('rows'):
     rows = ss['rows']
     df = pd.DataFrame(rows, columns=['trial','seg','arm','ctx','clicks','views','ctr'])
@@ -174,9 +177,9 @@ if ss.get('rows'):
     #
     #df5 = df[df['trial']==trials].groupby(['ctx']).agg({'clicks':'sum','views':'sum'}).reset_index()
     #
-    c1.dataframe(df4_ctr.style.background_gradient(cmap = st_cmap, axis=1).format(precision=4), use_container_width=True)
-    c2.dataframe(df4_clicks.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
-    c3.dataframe(df4_views.style.background_gradient(cmap = st_cmap, axis=1), use_container_width=True)
+    c1.dataframe(df4_ctr.style.background_gradient(    cmap = st_cmap, axis=1).format(precision=4), hide_index=True, use_container_width=True)
+    c2.dataframe(df4_clicks.style.background_gradient( cmap = st_cmap, axis=1).format(precision=0), hide_index=True, use_container_width=True)
+    c3.dataframe(df4_views.style.background_gradient(  cmap = st_cmap, axis=1).format(precision=0), hide_index=True, use_container_width=True)
     #
     c1.dataframe(df4)
 
