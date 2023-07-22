@@ -198,7 +198,7 @@ if ss.get('rows'):
     c2.dataframe(df4_clicks.style.background_gradient( cmap = st_cmap, axis=1).format(precision=0), hide_index=True, use_container_width=True)
     c3.dataframe(df4_views.style.background_gradient(  cmap = st_cmap, axis=1).format(precision=0), hide_index=True, use_container_width=True)
     #
-    c1.dataframe(df4)
+    #c1.dataframe(df4)
 
 # TODO: reward over time VS context
 # TODO: cumulative reward over time VS context
