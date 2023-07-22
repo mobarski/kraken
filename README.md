@@ -36,7 +36,7 @@ Features not yet included:
 
 
 
-![image](static/simulator-2.png)
+![image](static/simulator-3.png)
 
 
 
