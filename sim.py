@@ -1,13 +1,17 @@
 from random import Random
+import random
+from itertools import combinations
 
 G1 = Random()
 G2 = Random()
 G3 = Random()
+G4 = Random()
 
 def set_random_seed(x):
 	G1.seed(x)
 	G2.seed(x)
 	G3.seed(x)
+	G4.seed(x)
 
 def random_ctx(ctx_config):
 	ctx = {}
@@ -16,10 +20,39 @@ def random_ctx(ctx_config):
 		ctx[k] = _weighted_choice(options, weights)
 	return ctx
 
-def random_click(arm_ids, arm_config, ctx={}, no_click_weight=0, click_weight=1):
+def random_ctx_combos(n_combos, combo_len, ctx_config):
+	"unweighted ctx combos for generating non-linear arm weights"
+	kk_pool = list(combinations(ctx_config, combo_len)) * n_combos
+	v_pool = {k:list(ctx_config[k][0]) for k in ctx_config}
+	for k in v_pool:
+		random.shuffle(v_pool[k])
+		v_pool[k] = v_pool[k] * n_combos
+	out = []
+	for i in range(n_combos):
+		combo = []
+		kk = kk_pool.pop()
+		for k in kk:
+			v = v_pool[k].pop()
+			combo.append(f'{k}:{v}')
+		out.append(tuple(combo))
+	return out
+
+def random_arms(n, pool):
+	"randomized arms from a round-robin pool"
+	a_pool = list(pool)
+	random.shuffle(a_pool)
+	a_pool *= n
+	return a_pool[:n]
+
+def random_click(arm_ids, arm_config, ctx={}, non_linear_arm_config={}, no_click_weight=0, click_weight=1):
 	kv_list = [f'{k}:{v}' for k,v in ctx.items()]
 	kv_weights = [arm_config[kv] for kv in kv_list]
 	weights = [sum(w) for w in zip(*kv_weights)]
+	for kvs in non_linear_arm_config:
+		if all([kv in kv_list for kv in kvs]):
+			for i,x in non_linear_arm_config[kvs].items():
+				weights[i-1] = int(weights[i-1] * x)
+	print(weights) # XXX
 	arm_weights = [no_click_weight] + [weights[i-1] if ctx else click_weight for i in arm_ids]
 	return _weighted_choice(tuple([None]+arm_ids), tuple(arm_weights))
 
@@ -38,6 +71,7 @@ def sim_one(core, config):
 	param = config.get('param')
 	pass_ctx = config.get('pass_ctx',True)
 	seg = config.get('seg',[]) or []
+	non_linear_arm_config = config.get('nl_config',{})
 	#
 	ctx = random_ctx(ctx_config)
 	stats_ctx = ctx if pass_ctx else {} # TODO: better names
@@ -53,7 +87,7 @@ def sim_one(core, config):
 	disp_ids = ids[:n_disp]
 	core.register_views(disp_ids, ctx, room=room, seg=seg)
 	#
-	click_id = random_click(disp_ids, arm_config, ctx, no_click_weight, click_weight)
+	click_id = random_click(disp_ids, arm_config, ctx, non_linear_arm_config, no_click_weight, click_weight)
 	if click_id:
 		core.register_click(click_id, ctx, room=room, seg=seg)
 
@@ -92,10 +126,20 @@ if __name__=="__main__":
 		'pos:2': [3,3,3, 3,3,3, 3,3,3],
 		'pos:3': [1,1,1, 1,1,1, 1,1,1],
 	}
+	non_linear = {
+		('gender:m','platform:tv'):     {1:3.0},
+		('gender:o','platform:mobile'): {5:0.2},
+	}
 	pool = [1,2,3,4,5,6,7,8,9]
+	#
+	print(random_ctx_combos(3,2,ctx_config))
+	print(random_arms(15,pool))
+	exit()
 	#
 	ctx = random_ctx(ctx_config)
 	print(ctx)
-	print(random_click(pool, arm_config, ctx={}, no_click_weight=0, click_weight=1))
-
-
+	print(random_click(pool, arm_config, ctx={},  no_click_weight=0, click_weight=1))
+	print(random_click(pool, arm_config, ctx=ctx, no_click_weight=0))
+	ctx = {'gender':'m','platform':'tv'}
+	print(random_click(pool, arm_config, ctx=ctx, no_click_weight=0))
+	print(random_click(pool, arm_config, ctx=ctx, no_click_weight=0, non_linear_arm_config=non_linear))

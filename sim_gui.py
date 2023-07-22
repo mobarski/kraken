@@ -41,7 +41,7 @@ st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
 ABOUT = """
 Made by [Maciej Obarski](https://www.linkedin.com/in/mobarski/).\n
-Follow me on [Twitter](https://twitter.com/KerbalFPV) for news and updates.\n
+Follow me on [Twitter](https://twitter.com/KerbalFPV) for news about other projects.\n
 Source code will be published [here](https://github.com/mobarski/kraken).
 """
 # Source code can be found [here](https://github.com/mobarski/kraken).
@@ -61,12 +61,24 @@ ctx_config = [
 ]
 ctx_df = pd.DataFrame(ctx_config,columns=['key','value','weight'])
 
-def get_arm_df(ctx_df):
+def randomzed_arm_df(ctx_df):
     arm_config = []
     for i in range(arms):
         for key,value,_ in ctx_df.values:
             arm_config.append((i+1,key,value,random.randint(1,99)))
     return pd.DataFrame(arm_config, columns=['arm','key','value','weight'])
+
+def randomized_nonlinear_config():
+    out = {}
+    pool = list(range(1,arms+1))
+    v_pool = [nl_val, 1/nl_val] * nl_cnt
+    ctx_weights = df_to_ctx_weights(ctx_df)
+    ctx_pool = sim.random_ctx_combos(nl_cnt, 2, ctx_weights)
+    a_pool = sim.random_arms(nl_cnt, pool)
+    for a,ctx in zip(a_pool,ctx_pool):
+        if ctx not in out: out[ctx] = {}
+        out[ctx][a] = v_pool.pop(0)
+    return out
 
 def df_to_arm_weights_dict(arm_df):
     arm_df['kv'] = arm_df['key'] + ':' + arm_df['value']
@@ -87,19 +99,24 @@ with st.sidebar:
     with st.expander('context weights'):
         ctx_df = ctx_df.loc[ctx_df['key'].isin(use_ctx)]
         st.data_editor(ctx_df, disabled=('key','value'), column_config={'_index':None}, width=300)
+        ctx_weights = df_to_ctx_weights(ctx_df)
     with st.expander('arms', expanded=True):
         sc1,sc2 = st.columns(2)
         arms = sc1.number_input('number of arms', value=3, min_value=2, max_value=9)
         seed1 = sc2.number_input('random seed (arms)', value=43)
-        nl_freq = sc1.number_input('🚧 non-linear combinations', value=0, min_value=0, max_value=5, step=1)
-        nl_freq = sc2.number_input('🚧 non-linearity strength',  value=3.0, min_value=1.5, max_value=5.0, step=0.5)
+        nl_cnt = sc1.number_input('non-linear combinations', value=0, min_value=0, max_value=5, step=1)
+        nl_val = sc2.number_input('non-linearity strength',  value=3.0, min_value=1.0, max_value=5.0, step=0.5)
         if st.button("randomize arms weights", type='primary', use_container_width=True):
             random.seed(seed1)
-            arm_df = get_arm_df(ctx_df)
+            arm_df = randomzed_arm_df(ctx_df)
             ss['arm_df'] = arm_df
+            nl_config = randomized_nonlinear_config()
+            ss['nl_config'] = nl_config
         arm_df = ss.get('arm_df')
+        nl_config = ss.get('nl_config',{})
     with st.expander('arm weights'):
         st.data_editor(arm_df, disabled=('arm','key','value'), column_config={'_index':None}, width=300)
+        st.write({str(k):str(v) for k,v in nl_config.items()})
     with st.expander('trials', expanded=True):
         sc1,sc2 = st.columns(2)
         trials = sc1.selectbox('trials to simulate', [1,10,100,1_000,5_000, 10_000,20_000], index=4)
@@ -116,7 +133,7 @@ with st.sidebar:
             with st.spinner('running'):
                 pool = list(range(1,arms+1))
                 test_sim.core.db.clear() # XXX
-                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=df_to_ctx_weights(ctx_df), arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg))
+                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=ctx_weights, arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg, nl_config=nl_config))
                 ss['rows'] = rows
     st.markdown(ABOUT)
 

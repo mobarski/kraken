@@ -42,7 +42,7 @@ Features not yet included:
 
 ## Installation
 
-**NOTE**: This is experimental software. The design, functionality, and interface can change without any notice.
+**NOTE**: This is experimental Proof-of-Concept software - code quality is 'so-so'. The design, functionality, and interface may change without any notice.
 
 To install Kraken, you can use the pip command as follows:
 
