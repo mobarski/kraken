@@ -36,9 +36,9 @@ Features not yet included:
 
 
 
-![image](static/simulator-3.png)
+![image](static/simulator-4.png)
 
-
+Example GUI instance can be accessed [here](https://mc-kraken.streamlit.app/).
 
 ## Installation
 

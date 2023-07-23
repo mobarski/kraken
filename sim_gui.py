@@ -24,7 +24,7 @@ st_cmap = LinearSegmentedColormap.from_list('st_cmap', ['#83c9ff','#ffffff','#ff
 #st_cmap = LinearSegmentedColormap.from_list('st_cmap', ['#3d9df3','#ffffff','#ff8c8c'])
 # /GRADIENTS
 
-st.set_page_config(layout='wide', page_title='McKraken') #, page_icon='🦑')
+st.set_page_config(layout='wide', page_title='MC Kraken') #, page_icon='🦑')
 ss = st.session_state
 
 css = """
