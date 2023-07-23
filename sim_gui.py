@@ -1,6 +1,8 @@
 # RUN: streamlit run sim_gui.py
 import streamlit as st
 import pandas as pd
+import altair as alt
+
 import random
 import test_sim
 import sim
@@ -104,8 +106,8 @@ with st.sidebar:
         sc1,sc2 = st.columns(2)
         arms = sc1.number_input('number of arms', value=3, min_value=2, max_value=9)
         seed1 = sc2.number_input('random seed (arms)', value=43)
-        nl_cnt = sc1.number_input('non-linear combinations', value=0, min_value=0, max_value=5, step=1)
-        nl_val = sc2.number_input('non-linearity strength',  value=3.0, min_value=1.0, max_value=5.0, step=0.5)
+        nl_cnt = sc1.number_input('non-linear combinations', value=3, min_value=0, max_value=5, step=1)
+        nl_val = sc2.number_input('non-linearity strength',  value=5.0, min_value=1.0, max_value=5.0, step=0.5)
         if st.button("randomize arms weights", type='primary', use_container_width=True):
             random.seed(seed1)
             arm_df = randomzed_arm_df(ctx_df)
@@ -183,7 +185,10 @@ if ss.get('rows'):
     df4 = df0[df0['trial']==trials]
     #df4 = df4[df4['ctx']!='']
     df4_ctr = df4.pivot_table(index=['ctx'], columns=['arm'], values='ctr').reset_index()
-    if 1:
+    if 0:
+        c = alt.Chart(df4).mark_bar().encode(xOffset=alt.X('arm:O', title=None), x=alt.X('ctx'), y=alt.Y('ctr',title=None)).encode(color=alt.Color('arm:O', legend=None)).properties(height=350)
+        c1.altair_chart(c, use_container_width=True, theme='streamlit')
+    elif 1:
         c1.bar_chart(df4_ctr, x='ctx')
     else:
         c1.bar_chart(df2,x='arm',y='ctr')
@@ -198,7 +203,8 @@ if ss.get('rows'):
     c2.dataframe(df4_clicks.style.background_gradient( cmap = st_cmap, axis=1).format(precision=0), hide_index=True, use_container_width=True)
     c3.dataframe(df4_views.style.background_gradient(  cmap = st_cmap, axis=1).format(precision=0), hide_index=True, use_container_width=True)
     #
-    #c1.dataframe(df4)
+    #main.dataframe(df4)
+    #main.dataframe(df4_ctr)
 
 # TODO: reward over time VS context
 # TODO: cumulative reward over time VS context

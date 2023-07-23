@@ -1,3 +1,4 @@
 tqdm
 matplotlib
+altair>=5.0
 
