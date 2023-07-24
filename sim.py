@@ -6,12 +6,14 @@ G1 = Random()
 G2 = Random()
 G3 = Random()
 G4 = Random()
+G5 = Random()
 
 def set_random_seed(x):
 	G1.seed(x)
 	G2.seed(x)
 	G3.seed(x)
 	G4.seed(x)
+	G5.seed(x)
 
 def random_ctx(ctx_config):
 	ctx = {}
@@ -44,7 +46,26 @@ def random_arms(n, pool):
 	a_pool *= n
 	return a_pool[:n]
 
-def random_click(arm_ids, arm_config, ctx={}, non_linear_arm_config={}, no_click_weight=0, click_weight=1):
+
+def random_decay_config(pool, start_lo, start_hi, duration_lo, duration_hi, after_lo, after_hi):
+	out = {}
+	# sanitize ranges
+	if start_lo>start_hi:
+		start_lo,start_hi = start_hi,start_lo
+	if duration_lo>duration_hi:
+		duration_lo,duration_hi = duration_hi,duration_lo
+	if after_lo>after_hi:
+		after_lo,after_hi = after_hi,after_lo
+	#
+	for a in pool:
+		start = G5.randint(start_lo, start_hi)
+		duration = G5.randint(duration_lo, duration_hi)
+		after = G5.uniform(after_lo, after_hi)
+		out[a] = (start, duration, after)
+	return out
+
+
+def random_click(arm_ids, arm_config, ctx={}, non_linear_arm_config={}, no_click_weight=0, click_weight=1, trial=0, decay_config={}):
 	kv_list = [f'{k}:{v}' for k,v in ctx.items()]
 	kv_weights = [arm_config[kv] for kv in kv_list]
 	weights = [sum(w) for w in zip(*kv_weights)]
@@ -52,7 +73,20 @@ def random_click(arm_ids, arm_config, ctx={}, non_linear_arm_config={}, no_click
 		if all([kv in kv_list for kv in kvs]):
 			for i,x in non_linear_arm_config[kvs].items():
 				weights[i-1] = int(weights[i-1] * x)
-	print(weights) # XXX
+	#print('weights before decay',weights) # XXX
+	# decay v1 -> arm_id : (start, duration, after)
+	for a in decay_config:
+		start,duration,after = decay_config[a]
+		if trial<start:
+			continue
+		elif trial>=start+duration:
+			weights[a-1] = int(weights[a-1] * after)
+		else:
+			decay = (trial - start) / duration
+			y1 = weights[a-1]
+			y2 = weights[a-1] * after
+			weights[a-1] = int(y1 - (y1-y2) * decay)
+	#print('weights after decay',weights) # XXX
 	arm_weights = [no_click_weight] + [weights[i-1] if ctx else click_weight for i in arm_ids]
 	return _weighted_choice(tuple([None]+arm_ids), tuple(arm_weights))
 
@@ -61,7 +95,7 @@ def sim_one(core, config):
 	no_click_weight = config.get('no_click_weight',10)
 	click_weight = config.get('click_weight',1)
 	algo = config.get('algo','ucb1')
-	stat = 'ctr' if algo in ['epsg'] else algo
+	stat = 'ctr' if algo in ['epsg','rand'] else algo
 	room = config.get('room',1)
 	pool = config.get('pool',[])
 	ctx_config = config.get('ctx_config',{})
@@ -72,6 +106,8 @@ def sim_one(core, config):
 	pass_ctx = config.get('pass_ctx',True)
 	seg = config.get('seg',[]) or []
 	non_linear_arm_config = config.get('nl_config',{})
+	decay_config = config.get('decay_config',{})
+	trial = config.get('trial',0)
 	#
 	ctx = random_ctx(ctx_config)
 	stats_ctx = ctx if pass_ctx else {} # TODO: better names
@@ -84,10 +120,12 @@ def sim_one(core, config):
 	if algo=='epsg':
 		if G2.random()<(param or 0):
 			G2.shuffle(ids)
+	elif algo=='rand':
+		G2.shuffle(ids)
 	disp_ids = ids[:n_disp]
 	core.register_views(disp_ids, ctx, room=room, seg=seg)
 	#
-	click_id = random_click(disp_ids, arm_config, ctx, non_linear_arm_config, no_click_weight, click_weight)
+	click_id = random_click(disp_ids, arm_config, ctx, non_linear_arm_config, no_click_weight, click_weight, decay_config=decay_config, trial=trial)
 	if click_id:
 		core.register_click(click_id, ctx, room=room, seg=seg)
 
@@ -130,11 +168,22 @@ if __name__=="__main__":
 		('gender:m','platform:tv'):     {1:3.0},
 		('gender:o','platform:mobile'): {5:0.2},
 	}
+	dec_config_v1 = {
+		# arm_id : (start, duration, decay)
+		1 : (1000, 1000, 0.1),
+		2 : (1500, 2000, 0.2),
+		3 : (2000, 3000, 0.3),
+		4 : (1200, 1000, 0.4),
+		5 : (1700, 2000, 0.5),
+		6 : (2200, 3000, 0.4),
+		7 : (2400, 1000, 0.3),
+		8 : (1000, 2000, 0.2),
+		9 : (1200, 3000, 0.1),
+	}
 	pool = [1,2,3,4,5,6,7,8,9]
 	#
 	print(random_ctx_combos(3,2,ctx_config))
 	print(random_arms(15,pool))
-	exit()
 	#
 	ctx = random_ctx(ctx_config)
 	print(ctx)
@@ -143,3 +192,4 @@ if __name__=="__main__":
 	ctx = {'gender':'m','platform':'tv'}
 	print(random_click(pool, arm_config, ctx=ctx, no_click_weight=0))
 	print(random_click(pool, arm_config, ctx=ctx, no_click_weight=0, non_linear_arm_config=non_linear))
+	print(random_click(pool, arm_config, ctx=ctx, no_click_weight=0, decay_config=dec_config_v1, trial=1500))

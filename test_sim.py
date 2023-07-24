@@ -23,6 +23,19 @@ arm_config = {
 	'pos:3': [1,1,1, 1,1,1, 1,1,1],
 }
 
+dec_config_v1 = {
+	# arm_id : (start, duration, decay)
+	1 : (1000, 1000, 0.1),
+	2 : (1500, 2000, 0.2),
+	3 : (2000, 3000, 0.3),
+	4 : (1200, 1000, 0.4),
+	5 : (1700, 2000, 0.5),
+	6 : (2200, 3000, 0.6),
+	7 : (2400, 1000, 0.7),
+	8 : (1000, 2000, 0.8),
+	9 : (1200, 3000, 0.9),
+}
+
 pool = [1,2,3,4,5,6,7,8,9]
 pool = [1,2,3]
 
@@ -33,6 +46,7 @@ def sim_many(n, config):
 	step = config.get('step',100)
 	out = []
 	for i in tqdm(range(n)):
+		config['trial'] = i+1
 		sim.sim_one(core, config)
 		#
 		if (i+1) % step == 0:
