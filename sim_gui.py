@@ -123,6 +123,7 @@ with st.sidebar:
         sc1,sc2 = st.columns(2)
         trials = sc1.selectbox('trials to simulate', [1,10,100,1_000,5_000, 10_000,20_000], index=4)
         data_step = sc1.selectbox('data step', [2,5,10,50,100,500], index=3)
+        recalc_prob = sc1.number_input('recalc probability', value=1.0, min_value=0.01, max_value=1.0, step=0.01)
         n_display = sc2.number_input('arms pulled per trial', value=1, min_value=1, max_value=arms)
         no_click = sc2.number_input('no click weight', value=100, step=50)
         seed2 = sc2.number_input('random seed (trials)', value=43)
@@ -135,7 +136,7 @@ with st.sidebar:
             with st.spinner('running'):
                 pool = list(range(1,arms+1))
                 test_sim.core.db.clear() # XXX
-                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=ctx_weights, arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg, nl_config=nl_config))
+                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=ctx_weights, arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg, nl_config=nl_config, recalc_prob=recalc_prob))
                 ss['rows'] = rows
     st.markdown(ABOUT)
 
