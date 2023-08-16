@@ -97,7 +97,7 @@ def sim_one(core, config):
 	algo = config.get('algo','ucb1')
 	stat = 'ctr' if algo in ['epsg','rand'] else algo
 	room = config.get('room',1)
-	pool = config.get('pool',[])
+	pool = config.get('pool',[]).copy()
 	ctx_config = config.get('ctx_config',{})
 	arm_config = config.get('arm_config',{})
 	recalc_prob = config.get('recalc_prob',1.0)
@@ -106,11 +106,26 @@ def sim_one(core, config):
 	pass_ctx = config.get('pass_ctx',True)
 	seg = config.get('seg',[]) or []
 	non_linear_arm_config = config.get('nl_config',{})
-	decay_config = config.get('decay_config',{})
+	decay_config = config.get('decay_config',{}).copy()
+	new_config = config.get('new_config',{})
 	trial = config.get('trial',0)
 	#
 	ctx = random_ctx(ctx_config)
 	stats_ctx = ctx if pass_ctx else {} # TODO: better names
+	# handle new arms
+	remove = []
+	for a in pool:
+		if a in new_config:
+			start,duration = new_config[a]
+			if a in decay_config:
+				dc = decay_config[a]
+				decay_config[a] = dc[0]+start, dc[1], dc[2]
+			if start is not None and trial<start:
+				remove.append(a)
+			elif duration is not None and trial>=start+duration:
+				remove.append(a)
+	for a in remove:
+		pool.remove(a)
 	#
 	if G1.random()<=recalc_prob:
 		if   stat=='ctr':  core.calculate_ctr(pool,  ctx, room=room, seg=seg) # core_base: 14k/s

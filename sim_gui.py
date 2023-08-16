@@ -3,6 +3,10 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
+# TODO: delayed arm start
+# TODO: sliding window for charts
+# TODO: imputation: simple / bayesian
+
 import random
 import test_sim
 import sim
@@ -120,8 +124,10 @@ with st.sidebar:
         pool = list(range(1,arms+1))
         seed1 = sc2.number_input('random seed (arms)', value=43)
         randomize = st.button("randomize arms weights", type='primary' if 'arm_df' not in ss else 'secondary', use_container_width=True)
-    with st.expander('arms non-linearity & decay'):
+    with st.expander('arms delay / non-linearity / decay'):
         sc1,sc2 = st.columns(2)
+        delay_cnt = sc1.slider('delayed arms', min_value=0, max_value=arms-1, value=0, step=1)
+        delay_start = sc2.slider('delay start', min_value=0, max_value=10_000, value=0, step=1_000)
         nl_cnt = sc1.number_input('non-linear combinations', value=3, min_value=0, max_value=5, step=1)
         nl_val = sc2.number_input('non-linearity strength',  value=5.0, min_value=1.0, max_value=5.0, step=0.5)
         dacay_type = st.radio('reward decay type',['none','global','per arm'],horizontal=True)
@@ -137,6 +143,7 @@ with st.sidebar:
             decay_start = st.slider('decay start', min_value=0, max_value=10_000, value=(1_000,5_000), step=1_000)
             decay_duration = st.slider('decay duration', min_value=0, max_value=10_000, value=(1_000,10_000), step=1_000)
             decay_factor = st.slider('decay factor', min_value=0.0, max_value=1.0, value=(0.5,0.9), step=0.1)
+
         if randomize:
             random.seed(seed1)
             arm_df = randomzed_arm_df(ctx_df)
@@ -152,17 +159,21 @@ with st.sidebar:
             else:
                 decay_config = {}
             ss['decay_config'] = decay_config
-            print('decay_config', decay_config) # XXX
+            delay_config = {a:(delay_start,None) for a in pool[-delay_cnt:]}
+            ss['delay_config'] = delay_config
             st.experimental_rerun()
         arm_df = ss.get('arm_df')
         nl_config = ss.get('nl_config',{})
         decay_config = ss.get('decay_config',{})
+        delay_config = ss.get('delay_config',{})
     with st.expander('arms weights'):
         st.data_editor(arm_df, disabled=('arm','key','value'), column_config={'_index':None}, width=300)
         st.write('non-linear config')
         st.write({str(k):str(v) for k,v in nl_config.items()})
         st.write('decay config')
         st.write(decay_config)
+        st.write('delay config')
+        st.write(delay_config)
     with st.expander('simulation', expanded=True):
         sc1,sc2 = st.columns(2)
         trials = sc1.selectbox('trials to simulate', [1,10,100,1_000,5_000, 10_000,20_000], index=4)
@@ -180,7 +191,7 @@ with st.sidebar:
             with st.spinner('running'):
                 pool = list(range(1,arms+1))
                 test_sim.core.db.clear() # XXX
-                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=ctx_weights, arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg, nl_config=nl_config, recalc_prob=recalc_prob, decay_config=decay_config))
+                rows = test_sim.sim_many(trials, dict(pool=pool, n_disp=n_display, no_click_weight=no_click, algo=algo, room=2, ctx_config=ctx_weights, arm_config=df_to_arm_weights_dict(arm_df), param=algo_param, pass_ctx=pass_ctx, step=data_step, seg=use_seg, nl_config=nl_config, recalc_prob=recalc_prob, decay_config=decay_config, new_config=delay_config))
                 ss['rows'] = rows
     st.markdown(ABOUT)
 

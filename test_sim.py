@@ -12,6 +12,7 @@ ctx_config = {
 	'platform': [('web','mobile','tv'), (20, 50, 30)], 
 }
 
+# TODO: rename
 arm_config = {
 	'gender:m': [1,1,9, 2,2,2, 3,3,4],
 	'gender:f': [4,4,4, 3,3,2, 2,1,1],
@@ -39,13 +40,21 @@ dec_config_v1 = {
 pool = [1,2,3,4,5,6,7,8,9]
 pool = [1,2,3]
 
+# TODO: rename
+new_config = {
+	# arm_id : (start, duration)
+	1 : (0, 1000),
+	2 : (0, None),
+	3 : (2000, 1000),
+}
+
 # TODO: seg, a VS a, seg ???
-def sim_many(n, config):
+def sim_many(n_trials, config):
 	room = config.get('room',1)
 	pool = config.get('pool',[])
 	step = config.get('step',100)
 	out = []
-	for i in tqdm(range(n)):
+	for i in tqdm(range(n_trials)):
 		config['trial'] = i+1
 		sim.sim_one(core, config)
 		#
@@ -75,7 +84,7 @@ def sim_many(n, config):
 
 if __name__=="__main__":
 	if 1:
-		rows = sim_many(100_000, dict(stat='ucb1', room=2, no_click_weight=10, pool=pool, arm_config=arm_config, ctx_config=ctx_config))
+		rows = sim_many(100_000, dict(stat='ucb1', room=2, no_click_weight=10, pool=pool, arm_config=arm_config, ctx_config=ctx_config, new_config=new_config, decay_config=dec_config_v1))
 		df = pd.DataFrame(rows, columns=['trial','arm','ctx','clicks','views','ctr'])
 	else:
 		import profile
