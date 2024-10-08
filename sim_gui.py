@@ -161,7 +161,7 @@ with st.sidebar:
             ss['decay_config'] = decay_config
             delay_config = {a:(delay_start,None) for a in pool[-delay_cnt:]}
             ss['delay_config'] = delay_config
-            st.experimental_rerun()
+            st.rerun()
         arm_df = ss.get('arm_df')
         nl_config = ss.get('nl_config',{})
         decay_config = ss.get('decay_config',{})
